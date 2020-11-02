@@ -31,7 +31,7 @@
     >
       <input
         :id="id"
-        @input="$emit('input', $event.target.checked)"
+        @input="$emit('input', $event.target.checked, id)"
         :checked="value"
         data-toggle="switch"
         data-inverse="true"
@@ -73,21 +73,6 @@
         type: String,
         required: false,
         default: 'md'
-      }
-    },
-    data() {
-      return {
-        isActive: this.value
-      };
-    },
-    watch: {
-      isActive(val) {
-        this.$emit('input', val);
-      }
-    },
-    methods: {
-      toggleSwitch(value) {
-        this.isActive = value;
       }
     }
   };

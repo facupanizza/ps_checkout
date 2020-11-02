@@ -17,6 +17,11 @@
  * @copyright Since 2007 PrestaShop SA and Contributors
  * @license   https://opensource.org/licenses/AFL-3.0 Academic Free License 3.0 (AFL-3.0)
  */
+
+use PrestaShop\Module\PrestashopCheckout\PaymentOptions\PaymentOption;
+use PrestaShop\Module\PrestashopCheckout\PaymentOptions\PaymentOptionsFactory;
+use PrestaShop\Module\PrestashopCheckout\PaymentOptions\PaymentOptionsProvider;
+
 require_once __DIR__ . '/vendor/autoload.php';
 
 if (!defined('_PS_VERSION_')) {
@@ -453,6 +458,38 @@ class Ps_checkout extends PaymentModule
         $paymentOption->setAdditionalInformation($this->display(__FILE__, '/views/templates/hook/paymentOptionButtonsAdditionalInformation.tpl'));
 
         return [$paymentOption];
+    }
+
+    /**
+     * Get payment methods order
+     *
+     * @return \PrestaShop\Module\PrestashopCheckout\PaymentOptions\PaymentOptions
+     */
+    public function getPaymentMethods()
+    {
+        $paymentOptions = \Configuration::get(
+            'PS_CHECKOUT_PAYMENT_METHODS_ORDER',
+            null,
+            null,
+            (int) \Context::getContext()->shop->id
+        );
+
+        // if no paymentMethods position is set, by default put credit card (hostedFields) as first position
+        if (empty($paymentOptions)) {
+            $paymentOptions = (new PaymentOptionsProvider())->createDefaultPaymentOptions();
+
+            \Configuration::updateValue(
+                'PS_CHECKOUT_PAYMENT_METHODS_ORDER',
+                json_encode($paymentOptions->getPaymentOptions()),
+                false,
+                null,
+                (int) \Context::getContext()->shop->id
+            );
+        } else {
+            $paymentOptions = (new PaymentOptionsFactory())->createPaymentOptionsFromConfiguration(json_decode($paymentOptions, true));
+        }
+
+        return $paymentOptions;
     }
 
     /**

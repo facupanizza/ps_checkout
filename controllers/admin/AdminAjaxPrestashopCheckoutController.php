@@ -45,6 +45,16 @@ class AdminAjaxPrestashopCheckoutController extends ModuleAdminController
         /** @var PrestaShop\Module\PrestashopCheckout\PayPal\PayPalConfiguration $paypalConfiguration */
         $paypalConfiguration = $this->module->getService('ps_checkout.paypal.configuration');
         $paypalConfiguration->setPaymentMethodsOrder(Tools::getValue('paymentMethods'));
+        $paymentOptionsUpdated = json_decode(Tools::getValue('paymentMethods'), true);
+        $paymentOptions = $this->module->getService('ps_checkout.paymentoptions.factory')->createPaymentOptionsFromAjax($paymentOptionsUpdated);
+
+        Configuration::updateValue(
+            'PS_CHECKOUT_PAYMENT_METHODS_ORDER',
+            json_encode($paymentOptions->getPaymentOptionsAsArray()),
+            false,
+            null,
+            (int) Context::getContext()->shop->id
+        );
     }
 
     /**
@@ -257,27 +267,49 @@ class AdminAjaxPrestashopCheckoutController extends ModuleAdminController
     }
 
     /**
-     * AJAX: Toggle card hosted fields availability
+     * AJAX: Toggle payment option hosted fields availability
      */
-    public function ajaxProcessToggleCardPaymentAvailability()
+    public function ajaxProcessTogglePaymentOptionAvailability()
     {
-        /** @var \PrestaShop\Module\PrestashopCheckout\PayPal\PayPalConfiguration $paypalConfiguration */
-        $paypalConfiguration = $this->module->getService('ps_checkout.paypal.configuration');
-        $paypalConfiguration->setCardPaymentEnabled(Tools::getValue('status') ? true : false);
+        $paymentOptions = json_decode(
+            Configuration::get(
+                'PS_CHECKOUT_PAYMENT_METHODS_ORDER',
+                null,
+                null,
+                (int) Context::getContext()->shop->id
+            ), true);
 
+        $paymentOptionToUpdate = json_decode(Tools::getValue('paymentOption'), true);
+        foreach ($paymentOptions as $key => $paymentOption) {
+            if ($paymentOption['name'] == $paymentOptionToUpdate['name']) {
+                $paymentOptions[$key]['enabled'] = $paymentOptionToUpdate['enabled'];
+                break;
+            }
+        }
+
+        Configuration::updateValue(
+            'PS_CHECKOUT_PAYMENT_METHODS_ORDER',
+            json_encode($paymentOptions),
+            false,
+            null,
+            (int) Context::getContext()->shop->id
+        );
+
+        if ($paymentOptionToUpdate['name'] === 'card') {
+            Configuration::updateValue(
+                'PS_CHECKOUT_CARD_PAYMENT_ENABLED',
+                $paymentOptionToUpdate['enabled'],
+                false,
+                null,
+                (int) Context::getContext()->shop->id
+            );
+        }
         (new PrestaShop\Module\PrestashopCheckout\Api\Payment\Shop(Context::getContext()->link))->updateSettings();
-    }
 
-    /**
-     * AJAX: Toggle card inline availability
-     */
-    public function ajaxProcessToggleCardInlinePayPalPayment()
-    {
-        /** @var \PrestaShop\Module\PrestashopCheckout\PayPal\PayPalConfiguration $paypalConfiguration */
-        $paypalConfiguration = $this->module->getService('ps_checkout.paypal.configuration');
-        $paypalConfiguration->setCardInlinePaypalEnabled(Tools::getValue('status') ? true : false);
-
-        (new PrestaShop\Module\PrestashopCheckout\Api\Payment\Shop(Context::getContext()->link))->updateSettings();
+        $this->ajaxDie(json_encode([
+                'status' => true,
+            ])
+        );
     }
 
     /**

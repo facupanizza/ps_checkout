@@ -24,6 +24,8 @@ use Monolog\Logger;
 use PrestaShop\Module\PrestashopCheckout\ExpressCheckout\ExpressCheckoutConfiguration;
 use PrestaShop\Module\PrestashopCheckout\Logger\LoggerFactory;
 use PrestaShop\Module\PrestashopCheckout\PayPal\PayPalConfiguration;
+use PrestaShop\Module\PrestashopCheckout\PaymentOptions\PaymentOptionsFactory;
+use PrestaShop\Module\PrestashopCheckout\PaymentOptions\PaymentOptionsProvider;
 use PrestaShop\Module\PrestashopCheckout\Presenter\PresenterInterface;
 
 /**
@@ -102,17 +104,22 @@ class ConfigurationModule implements PresenterInterface
      */
     private function getPaymentMethods()
     {
-        $paymentMethods = $this->paypalConfiguration->getPaymentMethodsOrder();
+        $paymentOptions = $this->paypalConfiguration->getPaymentMethodsOrder();
 
-        if (empty($paymentMethods)) {
-            $paymentMethods = [
-                ['name' => 'card'],
-                ['name' => 'paypal'],
-            ];
+        if (empty($paymentOptions)) {
+            $paymentOptions = (new PaymentOptionsProvider())->createDefaultPaymentOptions();
+
+            \Configuration::updateValue(
+                'PS_CHECKOUT_PAYMENT_METHODS_ORDER',
+                json_encode($paymentOptions->getPaymentOptionsAsArray()),
+                false,
+                null,
+                (int) \Context::getContext()->shop->id
+            );
         } else {
-            $paymentMethods = json_decode($paymentMethods, true);
+            $paymentOptions = (new PaymentOptionsFactory())->createPaymentOptionsFromConfiguration(json_decode($paymentOptions, true));
         }
 
-        return $paymentMethods;
+        return $paymentOptions->getPaymentOptionsAsArray(true);
     }
 }
